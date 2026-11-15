@@ -59,9 +59,10 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-3">
+        <nav aria-label="أدوات وإعدادات المنصة" className="flex items-center gap-3">
           {/* Templates & Samples Button */}
           <button
+            type="button"
             onClick={onOpenTemplates}
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold text-gray-300 hover:text-white bg-stream-card hover:bg-stream-border/60 border border-stream-border transition-all"
             title="Edit Layout Samples & Presets"
@@ -72,6 +73,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* BYO AI Key Button */}
           <button
+            type="button"
             onClick={onOpenSettings}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all border ${
               hasCustomKey
@@ -92,13 +94,14 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* New Clip / Reset */}
           <button
+            type="button"
             onClick={onNewProject}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-gradient-to-r from-stream-accent to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 transition-all"
           >
             <Video className="w-4 h-4" />
             <span>مشروع جديد</span>
           </button>
-        </div>
+        </nav>
       </div>
     </header>
   );

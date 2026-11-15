@@ -4,33 +4,135 @@
 
 :root {
   color-scheme: dark;
+  --scrollbar-thumb: #334155;
+  --scrollbar-thumb-hover: #475569;
+  --scrollbar-track: #0a0e17;
+}
+
+/* Modern Web Guidance: Standard Baseline Scrollbar */
+html, body, * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* Fallback for older browsers without standard scrollbar-color support */
+@supports not (scrollbar-color: auto) {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
 }
 
 body {
   margin: 0;
   background-color: #080b10;
   color: #e2e8f0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overflow-x: hidden;
+  text-rendering: optimizeLegibility;
 }
 
-/* Custom modern scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* Modern Web Guidance: Top-layer Dialog & Entry/Exit Animations */
+dialog:modal {
+  margin: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  max-width: 100vw;
+  max-height: 100vh;
+  outline: none;
+  overscroll-behavior: contain;
 }
 
-::-webkit-scrollbar-track {
-  background: #0f141f;
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #252e42;
-  border-radius: 9999px;
+/* Animate Elements To and From Top Layer (@starting-style & allow-discrete) */
+dialog[open],
+[popover]:popover-open {
+  opacity: 1;
+
+  @starting-style {
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    transform: scale(1);
+
+    @starting-style {
+      transform: scale(0.96);
+    }
+  }
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #3b4766;
+dialog,
+[popover] {
+  opacity: 0;
+  transition-property: opacity, transform, display, overlay;
+  transition-duration: 0.22s;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  transition-behavior: allow-discrete;
+
+  @media (prefers-reduced-motion: no-preference) {
+    transform: scale(0.96);
+  }
+}
+
+dialog::backdrop,
+[popover]::backdrop {
+  background-color: rgba(0, 0, 0, 0);
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+  transition-property: background-color, backdrop-filter, display, overlay;
+  transition-duration: 0.22s;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  transition-behavior: allow-discrete;
+}
+
+dialog[open]::backdrop,
+[popover]:popover-open::backdrop {
+  background-color: rgba(5, 8, 15, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+
+  @starting-style {
+    background-color: rgba(0, 0, 0, 0);
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog,
+  [popover] {
+    transition-duration: 0.05s;
+  }
+}
+
+/* Modern Web Guidance: Container Queries & Performance Containment */
+.clips-layout-container {
+  container-type: inline-size;
+}
+
+.clip-deferred-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 450px;
 }
 
 /* Glassmorphism helpers */

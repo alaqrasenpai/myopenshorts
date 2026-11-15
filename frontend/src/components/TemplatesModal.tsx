@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Layout, UploadCloud, Plus, CheckCircle2, Sparkles, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { X, Layout, UploadCloud, Sparkles } from 'lucide-react';
 import { LayoutTemplate } from '../types';
 import { api } from '../api/client';
 
@@ -16,11 +16,34 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({
   templates,
   onTemplatesUpdated,
 }) => {
-  if (!isOpen) return null;
-
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const [uploading, setUploading] = useState(false);
   const [sampleName, setSampleName] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (isOpen) {
+      if (!dialog.open) {
+        dialog.showModal();
+      }
+    } else {
+      if (dialog.open) {
+        dialog.close();
+      }
+    }
+  }, [isOpen]);
+
+  const handleDialogClick = (e: React.MouseEvent<HTMLDialogElement>) => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const r = dialog.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) {
+      onClose();
+    }
+  };
 
   const handleUploadSample = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,8 +65,15 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <dialog
+      ref={dialogRef}
+      onClose={onClose}
+      onClick={handleDialogClick}
+      aria-labelledby="templates-modal-title"
+      className="p-4"
+    >
       <div 
+        onClick={(e) => e.stopPropagation()}
         className="w-full max-w-3xl bg-stream-card border border-stream-border rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
         dir="rtl"
       >
@@ -54,14 +84,18 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({
               <Layout className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">مكتبة أنماط المونتاج ونماذج الـ Edits</h2>
+              <h2 id="templates-modal-title" className="text-lg font-bold text-white">
+                مكتبة أنماط المونتاج ونماذج الـ Edits
+              </h2>
               <p className="text-xs text-gray-400">
                 اختر من قوالب المونتاج الجاهزة أو ارفع Sample لنمط إيديت مخصص
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="إغلاق النافذة"
             className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-stream-border/50 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -164,6 +198,6 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 };

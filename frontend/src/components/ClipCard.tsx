@@ -69,7 +69,7 @@ export const ClipCard: React.FC<ClipCardProps> = ({
 
   return (
     <div 
-      className="bg-stream-card border border-stream-border hover:border-indigo-500/40 rounded-2xl p-5 shadow-xl transition-all duration-200 flex flex-col justify-between group relative overflow-hidden"
+      className="h-full bg-stream-card border border-stream-border hover:border-indigo-500/40 rounded-2xl p-5 shadow-xl transition-all duration-200 flex flex-col justify-between group relative overflow-hidden"
       dir="rtl"
     >
       <div>
@@ -94,6 +94,7 @@ export const ClipCard: React.FC<ClipCardProps> = ({
               <video
                 ref={videoRef}
                 src={videoUrl}
+                preload="metadata"
                 playsInline
                 loop
                 onPlay={() => setIsPlaying(true)}

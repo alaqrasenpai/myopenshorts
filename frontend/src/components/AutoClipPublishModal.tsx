@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Copy, Check, Share2, Sparkles, Image as ImageIcon, 
-  Download, Film, Video, CheckCircle2
+  Download, Film, Video
 } from 'lucide-react';
 import { ClipItem, Project } from '../types';
 import { api, SocialPackage } from '../api/client';
@@ -19,7 +19,7 @@ export const AutoClipPublishModal: React.FC<AutoClipPublishModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  if (!isOpen || !clip) return null;
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   const [activePlatform, setActivePlatform] = useState<'tiktok' | 'youtube' | 'instagram'>('tiktok');
   const [socialData, setSocialData] = useState<SocialPackage | null>(null);
@@ -31,10 +31,37 @@ export const AutoClipPublishModal: React.FC<AutoClipPublishModalProps> = ({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
-    loadPackage();
-  }, [clip.id]);
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (isOpen && clip) {
+      if (!dialog.open) {
+        dialog.showModal();
+      }
+    } else {
+      if (dialog.open) {
+        dialog.close();
+      }
+    }
+  }, [isOpen, clip]);
+
+  useEffect(() => {
+    if (clip?.id) {
+      loadPackage();
+    }
+  }, [clip?.id]);
+
+  const handleDialogClick = (e: React.MouseEvent<HTMLDialogElement>) => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const r = dialog.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) {
+      onClose();
+    }
+  };
 
   const loadPackage = async () => {
+    if (!clip) return;
     setLoading(true);
     try {
       const res = await api.getAutoClipPackage(project.id, clip.id);
@@ -47,6 +74,7 @@ export const AutoClipPublishModal: React.FC<AutoClipPublishModalProps> = ({
   };
 
   const handleGenerateCover = async () => {
+    if (!clip) return;
     setGeneratingCover(true);
     try {
       const res = await api.generateCoverThumbnail(
@@ -69,9 +97,18 @@ export const AutoClipPublishModal: React.FC<AutoClipPublishModalProps> = ({
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
+  if (!clip) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+    <dialog
+      ref={dialogRef}
+      onClose={onClose}
+      onClick={handleDialogClick}
+      aria-labelledby="autoclip-publish-modal-title"
+      className="p-3 sm:p-6"
+    >
       <div 
+        onClick={(e) => e.stopPropagation()}
         className="w-full max-w-4xl bg-stream-card border border-stream-border rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden"
         dir="rtl"
       >
@@ -83,7 +120,9 @@ export const AutoClipPublishModal: React.FC<AutoClipPublishModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold text-white">حزمة النشر الذكي والتسويق (AutoClip Kit)</h2>
+                <h2 id="autoclip-publish-modal-title" className="text-base sm:text-lg font-bold text-white">
+                  حزمة النشر الذكي والتسويق (AutoClip Kit)
+                </h2>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                   Ready to Publish
                 </span>
@@ -92,7 +131,9 @@ export const AutoClipPublishModal: React.FC<AutoClipPublishModalProps> = ({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="إغلاق النافذة"
             className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-stream-border/50 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -118,7 +159,7 @@ export const AutoClipPublishModal: React.FC<AutoClipPublishModalProps> = ({
               {coverUrl ? (
                 <div className="flex items-center gap-2">
                   <a
-                    href={`http://localhost:8000${coverUrl}`}
+                    href={coverUrl}
                     download="cover.jpg"
                     target="_blank"
                     rel="noreferrer"
@@ -128,6 +169,7 @@ export const AutoClipPublishModal: React.FC<AutoClipPublishModalProps> = ({
                     <span>تحميل صورة الغلاف</span>
                   </a>
                   <button
+                    type="button"
                     onClick={handleGenerateCover}
                     disabled={generatingCover}
                     className="px-3 py-2 rounded-xl bg-stream-card hover:bg-stream-border text-xs text-gray-300 border border-stream-border"
@@ -137,6 +179,7 @@ export const AutoClipPublishModal: React.FC<AutoClipPublishModalProps> = ({
                 </div>
               ) : (
                 <button
+                  type="button"
                   onClick={handleGenerateCover}
                   disabled={generatingCover}
                   className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-red-500 hover:opacity-90 text-white font-bold text-xs flex items-center gap-2 shadow-md shadow-amber-500/20 transition-all disabled:opacity-50"
@@ -199,6 +242,7 @@ export const AutoClipPublishModal: React.FC<AutoClipPublishModalProps> = ({
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-bold text-gray-300">النص والوصف المقترح لـ TikTok:</span>
                         <button
+                          type="button"
                           onClick={() => copyToClipboard(socialData.tiktok.caption, 'tt_cap')}
                           className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-semibold"
                         >
@@ -220,6 +264,7 @@ export const AutoClipPublishModal: React.FC<AutoClipPublishModalProps> = ({
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-bold text-gray-300">عنوان الشورت (YouTube Title):</span>
                         <button
+                          type="button"
                           onClick={() => copyToClipboard(socialData.youtube_shorts.title, 'yt_title')}
                           className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 font-semibold"
                         >
@@ -237,6 +282,7 @@ export const AutoClipPublishModal: React.FC<AutoClipPublishModalProps> = ({
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-bold text-gray-300">الوصف (Description):</span>
                         <button
+                          type="button"
                           onClick={() => copyToClipboard(socialData.youtube_shorts.description, 'yt_desc')}
                           className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 font-semibold"
                         >
@@ -256,6 +302,7 @@ export const AutoClipPublishModal: React.FC<AutoClipPublishModalProps> = ({
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-gray-300">كابشن وهاشتاجات Instagram Reels:</span>
                       <button
+                        type="button"
                         onClick={() => copyToClipboard(socialData.instagram_reels.caption, 'ig_cap')}
                         className="text-xs text-pink-400 hover:text-pink-300 flex items-center gap-1 font-semibold"
                       >
@@ -274,6 +321,6 @@ export const AutoClipPublishModal: React.FC<AutoClipPublishModalProps> = ({
 
         </div>
       </div>
-    </div>
+    </dialog>
   );
 };

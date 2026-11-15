@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { X, Play, Pause, Volume2, VolumeX, Maximize2, Download, Film, Sparkles } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { X, Play, Pause, Volume2, VolumeX, Download, Film } from 'lucide-react';
 import { ClipItem } from '../types';
 
 interface VideoPlayerModalProps {
@@ -15,14 +15,40 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   onClose,
   onOpenOpenCut,
 }) => {
-  if (!isOpen || !clip || !clip.rendered_url) return null;
-
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   const [currentTime, setCurrentTime] = useState<number>(0);
-  const [duration, setDuration] = useState<number>(clip.duration || 30);
+  const [duration, setDuration] = useState<number>(clip?.duration || 30);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (isOpen && clip?.rendered_url) {
+      if (!dialog.open) {
+        dialog.showModal();
+      }
+    } else {
+      if (dialog.open) {
+        dialog.close();
+      }
+    }
+  }, [isOpen, clip?.rendered_url]);
+
+  const handleDialogClick = (e: React.MouseEvent<HTMLDialogElement>) => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const r = dialog.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) {
+      onClose();
+    }
+  };
+
+  if (!clip || !clip.rendered_url) return null;
 
   const videoSrc = clip.rendered_url;
 
@@ -77,8 +103,15 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+    <dialog
+      ref={dialogRef}
+      onClose={onClose}
+      onClick={handleDialogClick}
+      aria-labelledby="video-player-modal-title"
+      className="p-3 sm:p-6"
+    >
       <div 
+        onClick={(e) => e.stopPropagation()}
         className="w-full max-w-4xl bg-stream-card border border-stream-border rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden"
         dir="rtl"
       >
@@ -90,7 +123,9 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm sm:text-base font-black text-white">{clip.hook_title}</h3>
+                <h3 id="video-player-modal-title" className="text-sm sm:text-base font-black text-white">
+                  {clip.hook_title}
+                </h3>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                   Virality: {clip.virality_score}/100
                 </span>
@@ -110,7 +145,9 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
             </button>
 
             <button
+              type="button"
               onClick={onClose}
+              aria-label="إغلاق المشغل"
               className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-stream-border/50 transition-colors"
             >
               <X className="w-5 h-5" />
@@ -138,6 +175,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
               <button
                 type="button"
                 onClick={togglePlay}
+                aria-label="تشغيل الفيديو"
                 className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-indigo-600/80 hover:bg-indigo-600 text-white flex items-center justify-center shadow-2xl backdrop-blur-sm transition-transform hover:scale-110 z-20"
               >
                 <Play className="w-8 h-8 ml-1" />
@@ -155,15 +193,16 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                 step="0.1"
                 value={progress}
                 onChange={handleSeek}
+                aria-label="مؤشر وقت الفيديو"
                 className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-indigo-500"
               />
 
               <div className="flex items-center justify-between text-xs text-white">
                 <div className="flex items-center gap-3">
-                  <button onClick={togglePlay} className="hover:text-indigo-400 transition-colors">
+                  <button type="button" onClick={togglePlay} aria-label={isPlaying ? 'إيقاف' : 'تشغيل'} className="hover:text-indigo-400 transition-colors">
                     {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                   </button>
-                  <button onClick={toggleMute} className="hover:text-indigo-400 transition-colors">
+                  <button type="button" onClick={toggleMute} aria-label={isMuted ? 'إلغاء الكتم' : 'كتم'} className="hover:text-indigo-400 transition-colors">
                     {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                   </button>
                   <span className="font-mono text-[11px] text-gray-300">
@@ -189,6 +228,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
           </div>
           {onOpenOpenCut && (
             <button
+              type="button"
               onClick={() => {
                 onClose();
                 onOpenOpenCut(clip);
@@ -201,6 +241,6 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
         </div>
 
       </div>
-    </div>
+    </dialog>
   );
 };

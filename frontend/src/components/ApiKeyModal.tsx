@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Key, CheckCircle2, AlertCircle, Sparkles, ExternalLink, ShieldCheck, Zap } from 'lucide-react';
 import { AppSettings } from '../types';
 import { api } from '../api/client';
@@ -16,7 +16,7 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
   settings,
   onSaved,
 }) => {
-  if (!isOpen) return null;
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   const [activeTab, setActiveTab] = useState<'gemini' | 'openai' | 'groq'>(
     settings?.active_ai_provider || 'gemini'
@@ -30,6 +30,42 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (isOpen) {
+      if (!dialog.open) {
+        dialog.showModal();
+      }
+    } else {
+      if (dialog.open) {
+        dialog.close();
+      }
+    }
+  }, [isOpen]);
+
+  // Sync settings when props change
+  useEffect(() => {
+    if (settings) {
+      setActiveTab(settings.active_ai_provider || 'gemini');
+      setGeminiKey(settings.gemini_api_key || '');
+      setOpenaiKey(settings.openai_api_key || '');
+      setGroqKey(settings.groq_api_key || '');
+      setWhisperProvider(settings.whisper_provider || 'local');
+    }
+  }, [settings]);
+
+  // Click outside detection for light-dismiss fallback
+  const handleDialogClick = (e: React.MouseEvent<HTMLDialogElement>) => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const r = dialog.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) {
+      onClose();
+    }
+  };
 
   const handleTestKey = async () => {
     setTesting(true);
@@ -80,8 +116,15 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <dialog
+      ref={dialogRef}
+      onClose={onClose}
+      onClick={handleDialogClick}
+      aria-labelledby="api-key-modal-title"
+      className="p-4"
+    >
       <div 
+        onClick={(e) => e.stopPropagation()}
         className="w-full max-w-2xl bg-stream-card border border-stream-border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
         dir="rtl"
       >
@@ -92,14 +135,18 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
               <Key className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">إعداد مفاتيح الذكاء الاصطناعي (BYO AI Key)</h2>
+              <h2 id="api-key-modal-title" className="text-lg font-bold text-white">
+                إعداد مفاتيح الذكاء الاصطناعي (BYO AI Key)
+              </h2>
               <p className="text-xs text-gray-400">
                 يمكن لكل مستخدم استخدام حساب الـ AI الخاص به لمعالجة واكتشاف اللقطات الفيروسية
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="إغلاق النافذة"
             className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-stream-border/50 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -190,7 +237,7 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
                   className="w-full px-4 py-2.5 rounded-xl bg-stream-dark border border-stream-border text-white text-sm focus:outline-none focus:border-indigo-500 font-mono transition-colors"
                 />
                 <p className="text-[11px] text-gray-400">
-                  يستخدم موديل <code className="text-indigo-300">gemini-3.8-flash</code> المتقدم لفهم سياق الستريم الطويل واكتشاف اللحظات المشوقة.
+                  يستخدم موديل <code className="text-indigo-300">gemini-2.5-flash</code> المتقدم لفهم سياق الستريم الطويل واكتشاف اللحظات المشوقة.
                 </p>
               </div>
             )}
@@ -331,12 +378,14 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
           </span>
           <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={onClose}
               className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white hover:bg-stream-border transition-colors"
             >
               إلغاء
             </button>
             <button
+              type="button"
               onClick={handleSave}
               disabled={saving}
               className="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-md shadow-indigo-600/30"
@@ -346,6 +395,6 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 };

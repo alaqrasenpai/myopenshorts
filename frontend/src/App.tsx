@@ -290,35 +290,38 @@ export function App() {
               </div>
             </div>
 
-            {/* Clips Grid Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-black text-white flex items-center gap-2">
-                  <Flame className="w-5 h-5 text-amber-400" />
-                  <span>الكلبسات الأكثر فيروسية (Viral Clips Candidates):</span>
-                </h2>
-                <p className="text-xs text-gray-400">
-                  مرتبة حسب درجة الفيروسية • يمكنك المونتاج الفوري، التعديل اليدوي في OpenCut، أو نسخ حزمة النشر
-                </p>
+            {/* Clips Section */}
+            <section aria-labelledby="viral-clips-heading" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 id="viral-clips-heading" className="text-lg font-black text-white flex items-center gap-2">
+                    <Flame className="w-5 h-5 text-amber-400" />
+                    <span>الكلبسات الأكثر فيروسية (Viral Clips Candidates):</span>
+                  </h2>
+                  <p className="text-xs text-gray-400">
+                    مرتبة حسب درجة الفيروسية • يمكنك المونتاج الفوري، التعديل اليدوي في OpenCut، أو نسخ حزمة النشر
+                  </p>
+                </div>
               </div>
-            </div>
 
-            {/* Clips Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(currentProject.clips || []).map((clip, idx) => (
-                <ClipCard
-                  key={clip.id}
-                  clip={clip}
-                  index={idx}
-                  onOpenStudio={(c) => setSelectedStudioClip(c)}
-                  onOpenOpenCut={(c) => setSelectedOpenCutClip(c)}
-                  onOpenAutoClip={(c) => setSelectedAutoClip(c)}
-                  onQuickRender={handleQuickRender}
-                  onWatchVideo={(c) => setPreviewClip(c)}
-                  isRendering={renderingClipId === clip.id}
-                />
-              ))}
-            </div>
+              {/* Clips Grid with Container Queries & Deferred Performance Containment */}
+              <div className="clips-layout-container grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {(currentProject.clips || []).map((clip, idx) => (
+                  <article key={clip.id} className="clip-deferred-card">
+                    <ClipCard
+                      clip={clip}
+                      index={idx}
+                      onOpenStudio={(c) => setSelectedStudioClip(c)}
+                      onOpenOpenCut={(c) => setSelectedOpenCutClip(c)}
+                      onOpenAutoClip={(c) => setSelectedAutoClip(c)}
+                      onQuickRender={handleQuickRender}
+                      onWatchVideo={(c) => setPreviewClip(c)}
+                      isRendering={renderingClipId === clip.id}
+                    />
+                  </article>
+                ))}
+              </div>
+            </section>
 
           </div>
         )}

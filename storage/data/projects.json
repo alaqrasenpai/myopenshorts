@@ -2374,13 +2374,15 @@
           }
         ],
         "face_box": {
-          "quadrant": "top_left",
-          "x": 0.0,
+          "x": 0,
           "y": 0.171,
           "w": 0.259,
-          "h": 0.306,
-          "confidence": 1.0
-        }
+          "h": 0.306
+        },
+        "rendered_url": "/api/clips/download/render_c8d9dbf4_clip_4_649_split_screen.mp4",
+        "rendered_file": "render_c8d9dbf4_clip_4_649_split_screen.mp4",
+        "selected_layout": "split_screen",
+        "selected_caption_style": "hormozi"
       },
       {
         "start_time": 2180.0,
@@ -2846,12 +2848,16 @@
         ],
         "face_box": {
           "quadrant": "top_left",
-          "x": 0.0,
+          "x": 0,
           "y": 0.171,
           "w": 0.259,
           "h": 0.306,
-          "confidence": 1.0
-        }
+          "confidence": 1
+        },
+        "rendered_url": "/api/clips/download/render_c8d9dbf4_clip_5_2180_split_screen.mp4",
+        "rendered_file": "render_c8d9dbf4_clip_5_2180_split_screen.mp4",
+        "selected_layout": "split_screen",
+        "selected_caption_style": "hormozi"
       },
       {
         "start_time": 326.0,
@@ -3842,7 +3848,7 @@
       }
     ],
     "created_at": 1794770528.6296375,
-    "updated_at": 1794772339.5895264,
+    "updated_at": 1794774093.9616082,
     "transcript": [
       {
         "id": 0,

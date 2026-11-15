@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   X, Play, Sliders, Type, Layout, Download, Sparkles, 
   Clock, Video, CheckCircle2, ChevronRight, Eye, ShieldCheck,
@@ -22,7 +22,33 @@ export const ClipStudioModal: React.FC<ClipStudioModalProps> = ({
   onClose,
   onClipUpdated,
 }) => {
-  if (!isOpen || !clip) return null;
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (isOpen && clip) {
+      if (!dialog.open) {
+        dialog.showModal();
+      }
+    } else {
+      if (dialog.open) {
+        dialog.close();
+      }
+    }
+  }, [isOpen, clip]);
+
+  const handleDialogClick = (e: React.MouseEvent<HTMLDialogElement>) => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const r = dialog.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) {
+      onClose();
+    }
+  };
+
+  if (!clip) return null;
 
   // Edit states
   const [layout, setLayout] = useState<string>(clip.selected_layout || 'split_screen');
@@ -137,8 +163,15 @@ export const ClipStudioModal: React.FC<ClipStudioModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+    <dialog
+      ref={dialogRef}
+      onClose={onClose}
+      onClick={handleDialogClick}
+      aria-labelledby="clip-studio-modal-title"
+      className="p-3 sm:p-6"
+    >
       <div 
+        onClick={(e) => e.stopPropagation()}
         className="w-full max-w-5xl bg-stream-card border border-stream-border rounded-2xl shadow-2xl flex flex-col max-h-[94vh] overflow-hidden"
         dir="rtl"
       >
@@ -150,7 +183,7 @@ export const ClipStudioModal: React.FC<ClipStudioModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold text-white">استوديو مونتاج وتخصيص الكليب (9:16)</h2>
+                <h2 id="clip-studio-modal-title" className="text-base sm:text-lg font-bold text-white">استوديو مونتاج وتخصيص الكليب (9:16)</h2>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                   Virality: {clip.virality_score}/100
                 </span>
@@ -522,6 +555,6 @@ export const ClipStudioModal: React.FC<ClipStudioModalProps> = ({
         </div>
 
       </div>
-    </div>
+    </dialog>
   );
 };

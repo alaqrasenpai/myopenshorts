@@ -23,9 +23,34 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
   onClose,
   onClipUpdated,
 }) => {
-  if (!isOpen || !clip) return null;
-
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (isOpen && clip) {
+      if (!dialog.open) {
+        dialog.showModal();
+      }
+    } else {
+      if (dialog.open) {
+        dialog.close();
+      }
+    }
+  }, [isOpen, clip]);
+
+  const handleDialogClick = (e: React.MouseEvent<HTMLDialogElement>) => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const r = dialog.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) {
+      onClose();
+    }
+  };
+
+  if (!clip) return null;
   const clipDuration = Math.max(1, clip.duration || (clip.end_time - clip.start_time));
 
   // Timeline segments in relative time (0.0 to clipDuration)
@@ -324,8 +349,15 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+    <dialog
+      ref={dialogRef}
+      onClose={onClose}
+      onClick={handleDialogClick}
+      aria-labelledby="opencut-editor-modal-title"
+      className="p-2 sm:p-4"
+    >
       <div 
+        onClick={(e) => e.stopPropagation()}
         className="w-full max-w-6xl bg-stream-card border border-stream-border rounded-2xl shadow-2xl flex flex-col h-[95vh] overflow-hidden"
         dir="rtl"
       >
@@ -337,7 +369,7 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-black text-white">محرر التايم لاين اليدوي (OpenCut Pro Editor)</h2>
+                <h2 id="opencut-editor-modal-title" className="text-base font-black text-white">محرر التايم لاين اليدوي (OpenCut Pro Editor)</h2>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-pink-500/20 text-pink-300 border border-pink-500/30">
                   CapCut-style Timeline
                 </span>
@@ -831,6 +863,6 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
         </div>
 
       </div>
-    </div>
+    </dialog>
   );
 };
