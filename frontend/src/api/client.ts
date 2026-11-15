@@ -1,6 +1,6 @@
 import { Project, AppSettings, LayoutTemplate, VideoMetadata } from '../types';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'http://localhost:8000';
 
 export interface OpenCutSegment {
   start: number;

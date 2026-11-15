@@ -248,9 +248,59 @@ def render_clip(req: RenderClipRequest):
         "face_box": face_box
     }
 
+@router.get("/snippet/{project_id}/{clip_id}")
+def get_clip_snippet(project_id: str, clip_id: str):
+    project = project_manager.get_project(project_id)
+    if not project or not project.get("video_path"):
+        raise HTTPException(status_code=404, detail="Project video not found")
+
+    clip = next((c for c in project.get("clips", []) if c["id"] == clip_id), None)
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+
+    # 1. If clip is already rendered in 9:16, serve the rendered clip
+    if clip.get("rendered_file"):
+        rendered_path = CLIPS_DIR / clip["rendered_file"]
+        if rendered_path.exists():
+            return FileResponse(path=str(rendered_path), media_type="video/mp4")
+
+    # 2. Extract lightweight faststart snippet for instant playback in OpenCut
+    snippet_filename = f"snippet_{project_id}_{clip_id}.mp4"
+    snippet_path = CLIPS_DIR / snippet_filename
+    if not snippet_path.exists():
+        duration = max(1.0, clip["end_time"] - clip["start_time"])
+        cmd = [
+            FFMPEG_PATH, "-y",
+            "-ss", str(clip["start_time"]),
+            "-t", str(duration),
+            "-i", project["video_path"],
+            "-c:v", "libx264",
+            "-preset", "ultrafast",
+            "-crf", "26",
+            "-c:a", "aac",
+            "-b:a", "128k",
+            "-movflags", "+faststart",
+            str(snippet_path)
+        ]
+        import subprocess
+        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    if not snippet_path.exists():
+        raise HTTPException(status_code=500, detail="Failed to generate snippet")
+
+    return FileResponse(path=str(snippet_path), media_type="video/mp4")
+
 @router.get("/download/{filename}")
 def download_clip(filename: str):
     file_path = CLIPS_DIR / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Rendered clip not found")
-    return FileResponse(path=str(file_path), media_type="video/mp4", filename=filename)
+    headers = {
+        "Content-Disposition": f'attachment; filename="{filename}"'
+    }
+    return FileResponse(
+        path=str(file_path),
+        media_type="application/octet-stream",
+        filename=filename,
+        headers=headers
+    )

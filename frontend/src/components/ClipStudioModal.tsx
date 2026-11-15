@@ -183,7 +183,7 @@ export const ClipStudioModal: React.FC<ClipStudioModalProps> = ({
                 /* Live Real Video Player if Rendered */
                 <div className="w-full h-full relative bg-black flex items-center justify-center">
                   <video
-                    src={`http://localhost:8000${renderedUrl}`}
+                    src={renderedUrl}
                     controls
                     autoPlay
                     loop
@@ -293,16 +293,21 @@ export const ClipStudioModal: React.FC<ClipStudioModalProps> = ({
             {/* Download Button if Rendered */}
             {renderedUrl && (
               <div className="mt-4 w-full">
-                <a
-                  href={`http://localhost:8000${renderedUrl}`}
-                  download={renderedFile || 'clip.mp4'}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all"
+                <button
+                  type="button"
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = renderedUrl;
+                    link.setAttribute('download', renderedFile || 'clip.mp4');
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   <span>تحميل المقطع الجاهز (MP4)</span>
-                </a>
+                </button>
               </div>
             )}
           </div>

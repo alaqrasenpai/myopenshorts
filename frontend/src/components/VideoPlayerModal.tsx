@@ -24,7 +24,17 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(clip.duration || 30);
 
-  const videoSrc = `http://localhost:8000${clip.rendered_url}`;
+  const videoSrc = clip.rendered_url;
+
+  const handleDownload = () => {
+    if (!clip.rendered_url) return;
+    const link = document.createElement('a');
+    link.href = clip.rendered_url;
+    link.setAttribute('download', clip.rendered_file || 'clip.mp4');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -90,16 +100,14 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <a
-              href={videoSrc}
-              download={clip.rendered_file || 'clip.mp4'}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              type="button"
+              onClick={handleDownload}
               className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all"
             >
               <Download className="w-3.5 h-3.5" />
               <span>تحميل MP4</span>
-            </a>
+            </button>
 
             <button
               onClick={onClose}

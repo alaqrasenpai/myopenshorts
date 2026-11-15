@@ -54,7 +54,18 @@ export const ClipCard: React.FC<ClipCardProps> = ({
     setIsMuted(videoRef.current.muted);
   };
 
-  const videoUrl = clip.rendered_url ? `http://localhost:8000${clip.rendered_url}` : null;
+  const handleDownload = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!clip.rendered_url) return;
+    const link = document.createElement('a');
+    link.href = clip.rendered_url;
+    link.setAttribute('download', clip.rendered_file || 'clip.mp4');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const videoUrl = clip.rendered_url || null;
 
   return (
     <div 
@@ -178,17 +189,15 @@ export const ClipCard: React.FC<ClipCardProps> = ({
                 </button>
               )}
 
-              <a
-                href={`http://localhost:8000${clip.rendered_url}`}
-                download={clip.rendered_file}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={handleDownload}
                 className="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all"
                 title="تحميل ملف MP4 مباشرة"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>تحميل</span>
-              </a>
+                <span>تحميل MP4</span>
+              </button>
             </>
           ) : (
             <button

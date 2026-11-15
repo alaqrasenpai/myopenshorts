@@ -3,7 +3,7 @@ import {
   X, Play, Pause, Scissors, Trash2, Volume2, VolumeX, Sparkles, 
   Download, Clock, Sliders, Type, FastForward, Undo, CheckCircle2,
   Wand2, RefreshCw, Layers, ShieldCheck, Film, CornerDownLeft,
-  Maximize2, RotateCcw, Plus, Eye
+  Maximize2, RotateCcw, Plus, ChevronRight, ChevronLeft, Video
 } from 'lucide-react';
 import { ClipItem, Project } from '../types';
 import { api, OpenCutSegment } from '../api/client';
@@ -26,28 +26,21 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
   if (!isOpen || !clip) return null;
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const clipDuration = Math.max(1, clip.duration || (clip.end_time - clip.start_time));
 
-  // Timeline segments (initially one segment covering the whole clip)
+  // Timeline segments in relative time (0.0 to clipDuration)
   const [segments, setSegments] = useState<OpenCutSegment[]>([
-    { start: clip.start_time, end: clip.end_time, speed: 1.0 }
+    { start: 0, end: clipDuration, speed: 1.0 }
   ]);
   const [selectedSegmentIdx, setSelectedSegmentIdx] = useState<number>(0);
 
-  // Video source toggle: rendered clip vs original stream video
-  const hasRendered = Boolean(clip.rendered_url);
-  const [videoMode, setVideoMode] = useState<'rendered' | 'source'>(hasRendered ? 'rendered' : 'source');
-  
-  const renderedSourceUrl = clip.rendered_url ? `http://localhost:8000${clip.rendered_url}` : '';
-  const streamSourceUrl = `http://localhost:8000/storage/downloads/${project.id}.mp4`;
-  const currentVideoSrc = videoMode === 'rendered' && hasRendered ? renderedSourceUrl : streamSourceUrl;
-
-  // Playhead & playback states
-  const [currentTime, setCurrentTime] = useState<number>(clip.start_time);
+  // Playhead states (relative time 0 to clipDuration)
+  const [currentTime, setCurrentTime] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [currentSpeed, setCurrentSpeed] = useState<number>(1.0);
 
-  // Settings & effects
+  // Settings & visual filters
   const [aspectRatio, setAspectRatio] = useState<string>('9:16');
   const [colorGrade, setColorGrade] = useState<string>('none');
   const [microfades, setMicrofades] = useState<boolean>(true); // video-use 30ms audio microfade
@@ -70,39 +63,24 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
   // Render & export state
   const [isRendering, setIsRendering] = useState<boolean>(false);
   const [renderedUrl, setRenderedUrl] = useState<string | null>(clip.rendered_url || null);
+  const [renderedFilename, setRenderedFilename] = useState<string | null>(clip.rendered_file || null);
 
-  // Total edited duration
+  // Video source URL: FastStart snippet endpoint for instant streaming
+  const videoSrc = `/api/clips/snippet/${project.id}/${clip.id}`;
+
+  // Total edited net duration
   const totalDuration = segments.reduce((acc, seg) => acc + (seg.end - seg.start) / (seg.speed || 1.0), 0);
-
-  // Sync video time on mount and mode change
-  useEffect(() => {
-    if (videoRef.current) {
-      if (videoMode === 'source') {
-        videoRef.current.currentTime = clip.start_time;
-        setCurrentTime(clip.start_time);
-      } else {
-        videoRef.current.currentTime = 0;
-        setCurrentTime(clip.start_time);
-      }
-    }
-  }, [videoMode, clip.start_time]);
 
   // Video Timeupdate listener
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
     const vTime = videoRef.current.currentTime;
-    
-    if (videoMode === 'source') {
-      setCurrentTime(vTime);
-      // Auto-loop if reached end of clip
-      if (vTime >= clip.end_time) {
-        videoRef.current.currentTime = clip.start_time;
-        if (!isPlaying) videoRef.current.pause();
-      }
-    } else {
-      // Rendered clip is 0-relative
-      const simulatedCurrent = clip.start_time + vTime;
-      setCurrentTime(simulatedCurrent);
+    setCurrentTime(vTime);
+
+    // If reached end of active segment or clip, pause or loop
+    if (vTime >= clipDuration) {
+      setIsPlaying(false);
+      videoRef.current.pause();
     }
   };
 
@@ -123,29 +101,25 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
     setIsMuted(videoRef.current.muted);
   };
 
-  const seekToTime = (targetAbsoluteTime: number) => {
+  const seekToRelativeTime = (timeInSeconds: number) => {
     if (!videoRef.current) return;
-    const clamped = Math.max(clip.start_time, Math.min(clip.end_time, targetAbsoluteTime));
-    if (videoMode === 'source') {
-      videoRef.current.currentTime = clamped;
-    } else {
-      videoRef.current.currentTime = Math.max(0, clamped - clip.start_time);
-    }
+    const clamped = Math.max(0, Math.min(clipDuration, timeInSeconds));
+    videoRef.current.currentTime = clamped;
     setCurrentTime(clamped);
   };
 
   // ✂️ Split active segment at current playhead
   const handleSplitAtPlayhead = () => {
-    const current = currentTime;
-    const targetIdx = segments.findIndex((s) => current > s.start + 0.3 && current < s.end - 0.3);
+    const cur = currentTime;
+    const targetIdx = segments.findIndex((s) => cur > s.start + 0.3 && cur < s.end - 0.3);
     if (targetIdx === -1) {
-      alert('يجب وضع مؤشر التايم لاين داخل مقطع (بعيداً عن الأطراف بـ 0.3 ثانية على الأقل) لإجراء القص');
+      alert('يجب وضع مؤشر التايم لاين داخل مقطع لإجراء القص (Split)');
       return;
     }
 
     const seg = segments[targetIdx];
-    const newSeg1: OpenCutSegment = { start: seg.start, end: current, speed: seg.speed };
-    const newSeg2: OpenCutSegment = { start: current, end: seg.end, speed: seg.speed };
+    const newSeg1: OpenCutSegment = { start: seg.start, end: cur, speed: seg.speed };
+    const newSeg2: OpenCutSegment = { start: cur, end: seg.end, speed: seg.speed };
 
     const newSegments = [...segments];
     newSegments.splice(targetIdx, 1, newSeg1, newSeg2);
@@ -164,11 +138,11 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
     const nextIdx = Math.max(0, selectedSegmentIdx - 1);
     setSelectedSegmentIdx(nextIdx);
     if (newSegments[nextIdx]) {
-      seekToTime(newSegments[nextIdx].start);
+      seekToRelativeTime(newSegments[nextIdx].start);
     }
   };
 
-  // ⚡ Speed control change
+  // ⚡ Speed control
   const handleChangeSpeed = (speed: number) => {
     setCurrentSpeed(speed);
     if (videoRef.current) {
@@ -181,7 +155,25 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
     }
   };
 
-  // 🔇 Remove silence pauses
+  // 📐 Trim active segment boundary
+  const handleNudgeBoundary = (isStart: boolean, delta: number) => {
+    const newSegments = [...segments];
+    const seg = newSegments[selectedSegmentIdx];
+    if (!seg) return;
+
+    if (isStart) {
+      const newStart = Math.max(0, Math.min(seg.end - 0.3, seg.start + delta));
+      seg.start = Math.round(newStart * 10) / 10;
+      seekToRelativeTime(seg.start);
+    } else {
+      const newEnd = Math.max(seg.start + 0.3, Math.min(clipDuration, seg.end + delta));
+      seg.end = Math.round(newEnd * 10) / 10;
+      seekToRelativeTime(seg.end);
+    }
+    setSegments(newSegments);
+  };
+
+  // 🔇 Remove silence pauses (Video-Use silence trim)
   const handleRemoveSilence = async () => {
     setIsDetectingSilence(true);
     try {
@@ -194,25 +186,25 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
         return;
       }
 
-      // Rebuild segments cutting out the silences
+      // Rebuild segments cutting out the silences (in relative seconds)
       const activeSegments: OpenCutSegment[] = [];
-      let cursor = clip.start_time;
+      let cursor = 0;
       for (const sil of silences) {
-        const absSilStart = clip.start_time + sil.start;
-        const absSilEnd = clip.start_time + sil.end;
-        if (absSilStart > cursor + 0.3) {
-          activeSegments.push({ start: cursor, end: absSilStart, speed: 1.0 });
+        const silStart = sil.start;
+        const silEnd = sil.end;
+        if (silStart > cursor + 0.3) {
+          activeSegments.push({ start: cursor, end: silStart, speed: 1.0 });
         }
-        cursor = absSilEnd;
+        cursor = silEnd;
       }
-      if (cursor < clip.end_time - 0.3) {
-        activeSegments.push({ start: cursor, end: clip.end_time, speed: 1.0 });
+      if (cursor < clipDuration - 0.3) {
+        activeSegments.push({ start: cursor, end: clipDuration, speed: 1.0 });
       }
 
       if (activeSegments.length > 0) {
         setSegments(activeSegments);
         setSelectedSegmentIdx(0);
-        seekToTime(activeSegments[0].start);
+        seekToRelativeTime(activeSegments[0].start);
       }
     } catch (e: any) {
       alert(`فشل اكتشاف فترات الصمت: ${e.message}`);
@@ -238,8 +230,6 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
     setAgentMessage(null);
     try {
       const promptLower = agentPrompt.toLowerCase();
-      
-      // Local quick parser
       if (promptLower.includes('صمت') || promptLower.includes('silence')) {
         await handleRemoveSilence();
         setAgentMessage('تم فحص وقص فترات الصمت تلقائياً بنجاح');
@@ -250,14 +240,12 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
         setColorGrade('cinematic');
         setAgentMessage('تم تطبيق التدرج اللوني السينمائي');
       } else {
-        // Fallback to server agent edit
         const res = await api.executeAgentEdit({
           project_id: project.id,
           clip_id: clip.id,
           instruction: agentPrompt.trim(),
         });
         setAgentMessage(res.explanation);
-        if (res.operations?.segments) setSegments(res.operations.segments);
         if (res.operations?.color_grade) setColorGrade(res.operations.color_grade);
       }
     } catch (err: any) {
@@ -271,10 +259,17 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
   const handleRenderOpenCut = async () => {
     setIsRendering(true);
     try {
+      // Map relative segments to absolute stream times
+      const absoluteSegments = segments.map((s) => ({
+        start: clip.start_time + s.start,
+        end: clip.start_time + s.end,
+        speed: s.speed || 1.0,
+      }));
+
       const res = await api.renderOpenCutManual({
         project_id: project.id,
         clip_id: clip.id,
-        segments: segments,
+        segments: absoluteSegments,
         text_overlays: textOverlays,
         target_aspect_ratio: aspectRatio,
         color_grade: colorGrade,
@@ -282,13 +277,13 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
       });
 
       setRenderedUrl(res.download_url);
-      setVideoMode('rendered');
+      setRenderedFilename(res.filename);
       onClipUpdated({
         ...clip,
         rendered_url: res.download_url,
         rendered_file: res.filename,
       });
-      alert('تم تصدير التعديلات اليدوية بنجاح عبر OpenCut! يمكنك مشاهدة وتحميل المقطع الآن.');
+      alert('تم تصدير التعديلات اليدوية بنجاح عبر OpenCut! يمكنك تنزيل أو مشاهدة المقطع الآن.');
     } catch (err: any) {
       alert(`خطأ أثناء التصدير: ${err.message}`);
     } finally {
@@ -296,7 +291,19 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
     }
   };
 
-  // Color filter CSS
+  // Direct Browser Download
+  const handleDownload = () => {
+    const url = renderedUrl || clip.rendered_url;
+    if (!url) return;
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', renderedFilename || clip.rendered_file || 'opencut_clip.mp4');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Live CSS Filter for video player
   const getFilterStyle = () => {
     switch (colorGrade) {
       case 'cinematic': return 'contrast(1.15) saturate(1.25) brightness(0.95)';
@@ -307,9 +314,14 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
     }
   };
 
-  // Time progress percentage across clip
-  const clipDuration = Math.max(1, clip.end_time - clip.start_time);
-  const playheadPercent = Math.min(100, Math.max(0, ((currentTime - clip.start_time) / clipDuration) * 100));
+  const playheadPercent = Math.min(100, Math.max(0, (currentTime / clipDuration) * 100));
+
+  const formatSec = (s: number) => {
+    const mins = Math.floor(s / 60);
+    const secs = Math.floor(s % 60);
+    const ms = Math.floor((s % 1) * 10);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}.${ms}`;
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
@@ -327,7 +339,7 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-black text-white">محرر التايم لاين اليدوي (OpenCut Pro Editor)</h2>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-pink-500/20 text-pink-300 border border-pink-500/30">
-                  Interactive Timeline & Player
+                  CapCut-style Timeline
                 </span>
               </div>
               <p className="text-[11px] text-gray-400 line-clamp-1">{clip.hook_title}</p>
@@ -335,41 +347,15 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Toggle Source / Rendered */}
-            {hasRendered && (
-              <div className="flex items-center p-0.5 rounded-xl bg-stream-dark border border-stream-border text-xs">
-                <button
-                  type="button"
-                  onClick={() => setVideoMode('rendered')}
-                  className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                    videoMode === 'rendered' ? 'bg-indigo-600 text-white shadow' : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  الكليب الممنتج (9:16)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setVideoMode('source')}
-                  className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                    videoMode === 'source' ? 'bg-indigo-600 text-white shadow' : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  الستريم الأصلي
-                </button>
-              </div>
-            )}
-
-            {renderedUrl && (
-              <a
-                href={`http://localhost:8000${renderedUrl}`}
-                download="opencut_clip.mp4"
-                target="_blank"
-                rel="noreferrer"
-                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/20"
+            {(renderedUrl || clip.rendered_url) && (
+              <button
+                type="button"
+                onClick={handleDownload}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>تحميل النسخة النهائية</span>
-              </a>
+                <span>تحميل المقطع المعدل (MP4)</span>
+              </button>
             )}
 
             <button
@@ -407,7 +393,7 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
               >
                 <video
                   ref={videoRef}
-                  src={currentVideoSrc}
+                  src={videoSrc}
                   playsInline
                   onTimeUpdate={handleTimeUpdate}
                   onPlay={() => setIsPlaying(true)}
@@ -471,10 +457,10 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
 
               {/* Timecode & Status Bar */}
               <div className="mt-2 flex items-center gap-3 text-xs font-mono text-gray-300">
-                <span className="text-indigo-400 font-bold">{currentTime.toFixed(1)}s</span>
+                <span className="text-indigo-400 font-bold">{formatSec(currentTime)}</span>
                 <span>/</span>
-                <span className="text-gray-400">{clip.end_time.toFixed(1)}s</span>
-                <span className="text-amber-400 font-semibold">({totalDuration.toFixed(1)}s صافي بعد القص)</span>
+                <span className="text-gray-400">{formatSec(clipDuration)}</span>
+                <span className="text-amber-400 font-semibold">({totalDuration.toFixed(1)}s بعد القص)</span>
               </div>
             </div>
 
@@ -567,7 +553,45 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
                 </div>
               </div>
 
-              {/* 3. Text Overlay Creator */}
+              {/* 3. Segment Trim & Nudge Controls */}
+              <div className="p-2.5 rounded-xl bg-stream-card border border-stream-border flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold text-gray-300">
+                  ضبط أطراف المقطع #{selectedSegmentIdx + 1}:
+                </span>
+                <div className="flex items-center gap-1.5 text-[10px] font-mono">
+                  <button
+                    type="button"
+                    onClick={() => handleNudgeBoundary(true, -0.5)}
+                    className="px-2 py-1 rounded bg-stream-dark border border-stream-border hover:bg-stream-border text-gray-200"
+                  >
+                    بداية -0.5s
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleNudgeBoundary(true, 0.5)}
+                    className="px-2 py-1 rounded bg-stream-dark border border-stream-border hover:bg-stream-border text-gray-200"
+                  >
+                    بداية +0.5s
+                  </button>
+                  <span className="text-gray-500">|</span>
+                  <button
+                    type="button"
+                    onClick={() => handleNudgeBoundary(false, -0.5)}
+                    className="px-2 py-1 rounded bg-stream-dark border border-stream-border hover:bg-stream-border text-gray-200"
+                  >
+                    نهاية -0.5s
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleNudgeBoundary(false, 0.5)}
+                    className="px-2 py-1 rounded bg-stream-dark border border-stream-border hover:bg-stream-border text-gray-200"
+                  >
+                    نهاية +0.5s
+                  </button>
+                </div>
+              </div>
+
+              {/* 4. Text Overlay Creator */}
               <div className="p-2.5 rounded-xl bg-stream-card border border-stream-border space-y-2">
                 <div className="flex items-center justify-between text-[11px] font-bold text-gray-300">
                   <div className="flex items-center gap-1.5">
@@ -613,7 +637,7 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
                 </form>
               </div>
 
-              {/* 4. Power Tools: Silence Removal & Micro-fades */}
+              {/* 5. Power Tools: Silence Removal & Micro-fades */}
               <div className="p-2.5 rounded-xl bg-stream-card border border-stream-border flex items-center justify-between gap-3 text-xs">
                 <button
                   type="button"
@@ -687,7 +711,7 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
                 {/* Jump to Beginning */}
                 <button
                   type="button"
-                  onClick={() => seekToTime(clip.start_time)}
+                  onClick={() => seekToRelativeTime(0)}
                   className="p-1.5 rounded-lg bg-stream-dark hover:bg-stream-border text-gray-300 border border-stream-border"
                   title="إعادة المؤشر للبداية"
                 >
@@ -708,8 +732,8 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
                 const clickX = e.clientX - rect.left;
                 // In RTL, left is 100%, right is 0%
                 const ratio = 1 - (clickX / rect.width);
-                const targetTime = clip.start_time + ratio * clipDuration;
-                seekToTime(targetTime);
+                const targetTime = ratio * clipDuration;
+                seekToRelativeTime(targetTime);
               }}
               className="flex-1 my-2 overflow-x-auto overflow-y-hidden relative bg-stream-dark/90 rounded-xl p-2 border border-stream-border/80 flex flex-col gap-1 cursor-pointer"
             >
@@ -724,9 +748,9 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
 
               {/* Track 1: Timecode Ruler */}
               <div className="h-4 flex items-center justify-between text-[9px] text-gray-500 font-mono px-2 border-b border-stream-border/30">
-                <span>{clip.start_time.toFixed(1)}s</span>
-                <span>{((clip.start_time + clip.end_time) / 2).toFixed(1)}s</span>
-                <span>{clip.end_time.toFixed(1)}s</span>
+                <span>00:00.0</span>
+                <span>{formatSec(clipDuration / 2)}</span>
+                <span>{formatSec(clipDuration)}</span>
               </div>
 
               {/* Track 2: Video Slices Track */}
@@ -745,7 +769,7 @@ export const OpenCutEditorModal: React.FC<OpenCutEditorModalProps> = ({
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedSegmentIdx(idx);
-                        seekToTime(seg.start);
+                        seekToRelativeTime(seg.start);
                       }}
                       style={{ width: `${widthPercent}%` }}
                       className={`h-full rounded-md p-1.5 cursor-pointer transition-all flex flex-col justify-between border ${
