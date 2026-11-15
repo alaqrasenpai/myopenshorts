@@ -1,0 +1,24 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Storage media files
+storage/downloads/*
+storage/clips/*
+storage/uploads/*
+storage/audio/*
+!storage/*/.gitkeep
+
+# Environment & Settings keys
+.env
+storage/data/settings.json
+
+# Build outputs
+frontend/dist/
+*.log
